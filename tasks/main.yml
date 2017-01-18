@@ -1,0 +1,72 @@
+---
+### Executable ###
+- name: Get Caddy executable stats
+  stat: path="{{ caddy_executable }}"
+  register: caddy_stats
+
+- name: Download Caddy
+  get_url:
+    url: "https://github.com/mholt/caddy/releases/download/v{{ caddy_version }}/caddy_linux_amd64.tar.gz"
+    dest: /tmp
+  when: caddy_stats.stat.exists == false
+
+- name: Unarchive Caddy
+  unarchive: src=/tmp/caddy_linux_amd64.tar.gz remote_src=yes dest=/tmp
+  when: caddy_stats.stat.exists == false
+
+- name: Install Caddy
+  command: mv /tmp/caddy_linux_amd64 "{{ caddy_executable }}"
+  when: caddy_stats.stat.exists == false
+
+- name: Caddy executable attributes
+  file: path="{{ caddy_executable }}" mode=0755
+  when: caddy_stats.stat.exists == false
+
+- name: Caddy setcap
+  command: setcap CAP_NET_BIND_SERVICE=+eip "{{ caddy_executable }}"
+  # when: caddy_stats.stat.exists == false
+
+- name: Create Caddy log directory
+  file: path=/var/log/caddy state=directory mode=0755 owner="{{ caddy_user }}" group="{{ caddy_user }}" recurse=yes
+
+- name: Create Caddy SSL directory
+  file: path=/etc/ssl/caddy state=directory mode=0755 owner="{{ caddy_user }}" group="{{ caddy_user }}" recurse=yes
+
+### Config ###
+- name: Ensure /etc/caddy exists
+  file: path=/etc/caddy state=directory mode=0755
+
+- name: Get Caddyfile stats
+  stat: path="{{ caddyfile }}"
+  register: caddyfile_stats
+
+- name: Ensure Caddyfile exists
+  file: path="{{ caddyfile }}" owner="{{ caddy_user }}" group="{{ caddy_user }}" state=touch
+  when: caddyfile_stats.stat.exists == false
+
+### Service ###
+- name: Copy systemd config file
+  template: src=caddy.service.j2 dest=/etc/systemd/system/caddy.service owner=root group=root mode=0744
+
+- name: Enable Caddy service
+  service: name=caddy enabled=yes
+
+- name: Start Caddy service
+  service: name=caddy state=started
+
+### SSH access ###
+- name: Ensure users ssh directory exists
+  file: path=/var/www/.ssh state=directory owner="{{ caddy_user }}" group="{{ caddy_user }}" mode=0700
+  when: ssh_access and caddy_user == 'www-data'
+
+- name: Ensure users ssh directory exists
+  file: path=/home/{{ caddy_user }}/.ssh state=directory owner="{{ caddy_user }}" group="{{ caddy_user }}" mode=0700
+  when: ssh_access and caddy_user != 'www-data'
+
+- name: Ensure SFTP access
+  authorized_key: user="{{ caddy_user }}" key="{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+  when: ssh_access
+
+- name: Caddy user login shell
+  user: name="{{ caddy_user }}" shell=/bin/bash
+  when: ssh_access
