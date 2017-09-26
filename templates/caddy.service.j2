@@ -15,7 +15,7 @@ Group={{ caddy_user }}
 Environment=HOME=/etc/ssl/caddy
 
 ; Always set "-root" to something safe in case it gets forgotten in the Caddyfile.
-ExecStart={{ caddy_executable }} -log stdout -agree=true -conf={{ caddyfile }} -root=/var/tmp -email {{ caddy_email }}
+ExecStart={{ caddy_executable }} -log /var/log/caddy/log -agree=true -conf={{ caddyfile }} -root=/var/tmp -email {{ caddy_email }}
 ExecReload=/bin/kill -USR1 $MAINPID
 
 ; Limit the number of file descriptors; see `man systemd.exec` for more limit settings.

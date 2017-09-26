@@ -7,39 +7,41 @@
 - name: Download Caddy
   get_url:
     url: "https://github.com/mholt/caddy/releases/download/v{{ caddy_version }}/caddy_v{{ caddy_version }}_linux_amd64.tar.gz"
-    dest: /tmp
+    dest: /tmp/caddy_linux_amd64.tar.gz
   when: caddy_stats.stat.exists == false
 
 - name: Unarchive Caddy
   unarchive: src=/tmp/caddy_v{{ caddy_version }}_linux_amd64.tar.gz remote_src=yes dest=/tmp
   when: caddy_stats.stat.exists == false
 
-- name: Caddy executable attributes
-  file: path=/tmp/caddy_v{{ caddy_version }}_linux_amd64.tar.gz mode=0755
+- name: Install Caddy
+  command: mv /tmp/caddy "{{ caddy_executable }}"
   when: caddy_stats.stat.exists == false
+  become: yes
 
 - name: Install Caddy
   command: mv /tmp/caddy "{{ caddy_executable }}"
   become: true
   when: caddy_stats.stat.exists == false
+  become: yes
 
 - name: Caddy setcap
   command: setcap CAP_NET_BIND_SERVICE=+eip "{{ caddy_executable }}"
-  become: true
+  become: yes
   # when: caddy_stats.stat.exists == false
 
 - name: Create Caddy log directory
   file: path=/var/log/caddy state=directory mode=0755 owner="{{ caddy_user }}" group="{{ caddy_user }}" recurse=yes
-  become: true
+  become: yes
 
 - name: Create Caddy SSL directory
   file: path=/etc/ssl/caddy state=directory mode=0755 owner="{{ caddy_user }}" group="{{ caddy_user }}" recurse=yes
-  become: true
+  become: yes
 
 ### Config ###
 - name: Ensure /etc/caddy exists
   file: path=/etc/caddy state=directory mode=0755
-  become: true
+  become: yes
 
 - name: Get Caddyfile stats
   stat: path="{{ caddyfile }}"
@@ -47,42 +49,46 @@
 
 - name: Ensure Caddyfile exists
   file: path="{{ caddyfile }}" owner="{{ caddy_user }}" group="{{ caddy_user }}" state=touch
-  become: true
   when: caddyfile_stats.stat.exists == false
+  become: yes
 
 ### Service ###
 - name: Copy systemd config file
   template: src=caddy.service.j2 dest=/etc/systemd/system/caddy.service owner=root group=root mode=0744
-  become: true
+  become: yes
 
 - name: Enable Caddy service
   service: name=caddy enabled=yes
-  become: true
+  become: yes
 
 - name: Start Caddy service
-  systemd: name=caddy state=started daemon_reload=yes
-  become: true
+  service: name=caddy state=started
+  become: yes
 
 ### SSH access ###
 - name: Ensure users ssh directory exists
   file: path=/var/www/.ssh state=directory owner="{{ caddy_user }}" group="{{ caddy_user }}" mode=0700
   become: true
   when: ssh_access and caddy_user == 'www-data'
+  become: yes
 
-- name: Ensure users ssh directory exists
+- name: Ensure users home directory exists
   file: path=/home/{{ caddy_user }}/.ssh state=directory owner="{{ caddy_user }}" group="{{ caddy_user }}" mode=0700
   become: true
   when: ssh_access and caddy_user != 'www-data'
+  become: yes
 
 - name: Ensure SFTP access
   authorized_key: user="{{ caddy_user }}" key="{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
   become: true
   when: ssh_access
+  become: yes
 
 - name: Caddy user login shell
   user: name="{{ caddy_user }}" shell=/bin/bash
   become: true
   when: ssh_access
+  become: yes
 
 ### Consul ###
 - name: Get Consul config directory exists
@@ -92,3 +98,4 @@
 - name: Copy Consul service configuration
   template: src=consul-web.json.j2 dest=/etc/consul.d/web.json owner=root group=root mode=0744
   when: consule_dir.stat.exists
+  become: yes

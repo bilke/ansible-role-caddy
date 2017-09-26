@@ -1,7 +1,7 @@
 ---
 caddy_executable: /usr/local/bin/caddy
 caddyfile: /etc/caddy/Caddyfile
-caddy_version: 0.10.2
+caddy_version: 0.10.9
 caddy_user: www-data
 caddy_email: mail@example.com
 ssh_access: false
