@@ -83,3 +83,12 @@
   user: name="{{ caddy_user }}" shell=/bin/bash
   become: true
   when: ssh_access
+
+### Consul ###
+- name: Get Consul config directory exists
+  stat: path=/etc/consul.d
+  register: consule_dir
+
+- name: Copy Consul service configuration
+  template: src=consul-web.json.j2 dest=/etc/consul.d/web.json owner=root group=root mode=0744
+  when: consule_dir.stat.exists
